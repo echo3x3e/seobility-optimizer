@@ -412,6 +412,23 @@ def audit_html_content(html: str, source_label: str, base_domain: str = "example
         report["sections"]["pagequality"]["score_percent"] -= 20
         report["sections"]["pagequality"]["warnings"].append(f"img_altmissing: {len(missing_alt)} Bild(er) ohne 'alt'-Attribut gefunden.")
 
+    # 9b. Duplicate Bold / Strong Tags (Seobility factor_bold_tags -> boldtags_dublicated_tag)
+    bold_tags = re.findall(r'<(?:strong|b)(?:\s[^>]*)?>([\s\S]*?)</(?:strong|b)>', cleaned, re.IGNORECASE)
+    seen_bold = set()
+    dup_bold = []
+    for bt in bold_tags:
+        norm_bt = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', bt)).strip().lower()
+        if not norm_bt:
+            continue
+        if norm_bt in seen_bold and norm_bt not in dup_bold:
+            dup_bold.append(norm_bt)
+        seen_bold.add(norm_bt)
+    if dup_bold:
+        report["sections"]["pagequality"]["score_percent"] -= 3
+        report["sections"]["pagequality"]["warnings"].append(
+            f"boldtags_dublicated_tag: Doppelte <strong>/<b> Tags gefunden ({', '.join(repr(x) for x in dup_bold[:5])}). Jeder <strong>-Text darf nur 1x pro Seite vorkommen."
+        )
+
     # 10. Structured Data (JSON-LD)
     json_lds = re.findall(r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>([\s\S]*?)</script>', html, re.IGNORECASE)
     if not json_lds:
